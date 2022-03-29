@@ -1,0 +1,13 @@
+server:
+  address:     ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+  logPath: "logs/"        #日志路径
+  logLevel: "DEV"         #日志级别 PROD/DEV
+  accessLogEnabled: true #访问日志
+  errorLogEnabled: true  #错误日志
+  errorStack: false  #错误堆栈信息
+
+
+
+
