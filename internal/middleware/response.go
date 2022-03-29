@@ -19,21 +19,29 @@ type DefaultHandlerResponse struct {
 func HandlerResponse(r *ghttp.Request) {
 	r.Middleware.Next()
 
-	// There's custom buffer content, it then exits current handler.
-	if r.Response.BufferLength() > 0 {
+	// 有buffer且http状态码不为500时(考虑 panic)直接返回，默认有自定义返回数据
+	if r.Response.BufferLength() > 0 && r.Response.Status != http.StatusInternalServerError {
 		return
 	}
 
 	var (
-		msg  string
-		ctx  = r.Context()
-		err  = r.GetError()
-		res  = r.GetHandlerResponse()
-		code = gerror.Code(err)
+		msg      string
+		ctx      = r.Context()
+		err      = r.GetError()
+		res      = r.GetHandlerResponse()
+		code     = gerror.Code(err)
+		httpCode int
 	)
 	if err != nil {
-		if code == gcode.CodeNil {
+		if code == gcode.CodeNil { // 未定义code的错误，默认业务级一般错误
 			code = gcode.CodeInternalError
+			httpCode = 400
+		} else {
+			if code == gcode.CodeInternalError {
+				httpCode = 500
+			} else {
+				httpCode = code.Code()
+			}
 		}
 		msg = err.Error()
 	} else if r.Response.Status > 0 && r.Response.Status != http.StatusOK {
@@ -41,14 +49,20 @@ func HandlerResponse(r *ghttp.Request) {
 		switch r.Response.Status {
 		case http.StatusNotFound:
 			code = gcode.CodeNotFound
+			httpCode = 404
 		case http.StatusForbidden:
 			code = gcode.CodeNotAuthorized
+			httpCode = 401
 		default:
 			code = gcode.CodeUnknown
+			httpCode = 500
 		}
 	} else {
 		code = gcode.CodeOK
+		httpCode = 200
 	}
+	r.Response.WriteStatus(httpCode)
+	r.Response.ClearBuffer()
 	internalErr := r.Response.WriteJson(DefaultHandlerResponse{
 		Code:    code.Code(),
 		Message: msg,

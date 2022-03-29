@@ -16,7 +16,6 @@ var (
 type cHello struct{}
 
 func (c *cHello) Hello(ctx context.Context, req *v1.HelloReq) (res *v1.HelloRes, err error) {
-	// panic("server error")
 	err = gerror.NewCode(gcode.New(401, "Not Authorized", ""), "请先登录")
 	return
 }
