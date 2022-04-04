@@ -9,14 +9,23 @@ import (
 	"github.com/gogf/gf/v2/os/glog"
 )
 
+var (
+	Response = cResponse{}
+)
+
+type cResponse struct{}
+
 type DefaultHandlerResponse struct {
 	Code    int         `json:"code"    dc:"Error code"`
 	Message string      `json:"message" dc:"Error message"`
 	Data    interface{} `json:"data"    dc:"Result data for certain request according API definition"`
 }
 
-// HandlerResponse todo 实现默认json返回
-func HandlerResponse(r *ghttp.Request) {
+func (c *cResponse) NotAuthorized() error {
+	return gerror.NewCode(gcode.CodeNotAuthorized)
+}
+
+func (c *cResponse) HandlerResponse(r *ghttp.Request) {
 	r.Middleware.Next()
 
 	// 有buffer且http状态码不为500时(考虑 panic)直接返回，默认有自定义返回数据
@@ -25,72 +34,38 @@ func HandlerResponse(r *ghttp.Request) {
 	}
 
 	var (
-		msg      string
-		ctx      = r.Context()
-		err      = r.GetError()
-		res      = r.GetHandlerResponse()
-		code     = gerror.Code(err)
-		httpCode int
+		err  = r.GetError()
+		res  = r.GetHandlerResponse()
+		code = gerror.Code(err)
 	)
-
-	if err == nil && r.Response.Status == http.StatusOK {
-		code = gcode.CodeOK
-		httpCode = 200
-		responseJson(r, httpCode, code, msg, res)
-		return
+	if err == nil && r.Response.Status == 200 {
+		c.responseJson(r, r.Response.Status, 1, "请求成功", res) // success
 	}
-	if err != nil && r.Response.Status == http.StatusOK {
-		code = gcode.CodeOK
-		httpCode = 200
-		responseJson(r, httpCode, code, msg, res)
-		return
-	}
-	if err != nil {
-		if code == gcode.CodeNil { // 未定义code的错误，默认业务级一般错误
-			code = gcode.CodeInternalError
-			httpCode = 400
-		} else {
-			if code == gcode.CodeInternalError {
-				httpCode = 500
-			} else {
-				httpCode = code.Code()
-			}
-		}
-		msg = err.Error()
-	} else if r.Response.Status > 0 && r.Response.Status != http.StatusOK {
-		msg = http.StatusText(r.Response.Status)
-		switch r.Response.Status {
-		case http.StatusNotFound:
-			code = gcode.CodeNotFound
-			httpCode = 404
-		case http.StatusForbidden:
-			code = gcode.CodeNotAuthorized
-			httpCode = 401
+	if err != nil && r.Response.Status == 200 {
+		switch code.Code() {
+		case 61:
+			c.responseJson(r, 401, -1, err.Error(), res) // 401
 		default:
-			code = gcode.CodeUnknown
-			httpCode = 500
+			c.responseJson(r, r.Response.Status, -1, err.Error(), res) // business error
 		}
-	} else {
-		code = gcode.CodeOK
-		httpCode = 200
 	}
-	r.Response.WriteStatus(httpCode)
-	r.Response.ClearBuffer()
-	internalErr := r.Response.WriteJson(DefaultHandlerResponse{
-		Code:    code.Code(),
-		Message: msg,
-		Data:    res,
-	})
-	if internalErr != nil {
-		glog.Errorf(ctx, `%+v`, internalErr)
+	if r.Response.Status == 404 {
+		c.responseJson(r, r.Response.Status, -1, "未找到该资源", res) // 404
 	}
+	if err != nil && r.Response.Status == 500 {
+		c.responseJson(r, r.Response.Status, -1, "服务器内部错误", res) // 500 has err
+	}
+	if err == nil && r.Response.Status == 500 {
+		c.responseJson(r, r.Response.Status, -1, "未知服务器错误", res) // 500 unknown err
+	}
+
 }
 
-func responseJson(r *ghttp.Request, httpCode int, code gcode.Code, msg string, res interface{}) {
+func (c *cResponse) responseJson(r *ghttp.Request, httpCode int, code int, msg string, res interface{}) {
 	r.Response.WriteStatus(httpCode)
 	r.Response.ClearBuffer()
 	internalErr := r.Response.WriteJsonExit(DefaultHandlerResponse{
-		Code:    code.Code(),
+		Code:    code,
 		Message: msg,
 		Data:    res,
 	})
