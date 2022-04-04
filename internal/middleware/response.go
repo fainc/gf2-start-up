@@ -32,6 +32,19 @@ func HandlerResponse(r *ghttp.Request) {
 		code     = gerror.Code(err)
 		httpCode int
 	)
+
+	if err == nil && r.Response.Status == http.StatusOK {
+		code = gcode.CodeOK
+		httpCode = 200
+		responseJson(r, httpCode, code, msg, res)
+		return
+	}
+	if err != nil && r.Response.Status == http.StatusOK {
+		code = gcode.CodeOK
+		httpCode = 200
+		responseJson(r, httpCode, code, msg, res)
+		return
+	}
 	if err != nil {
 		if code == gcode.CodeNil { // 未定义code的错误，默认业务级一般错误
 			code = gcode.CodeInternalError
@@ -70,5 +83,18 @@ func HandlerResponse(r *ghttp.Request) {
 	})
 	if internalErr != nil {
 		glog.Errorf(ctx, `%+v`, internalErr)
+	}
+}
+
+func responseJson(r *ghttp.Request, httpCode int, code gcode.Code, msg string, res interface{}) {
+	r.Response.WriteStatus(httpCode)
+	r.Response.ClearBuffer()
+	internalErr := r.Response.WriteJsonExit(DefaultHandlerResponse{
+		Code:    code.Code(),
+		Message: msg,
+		Data:    res,
+	})
+	if internalErr != nil {
+		glog.Errorf(r.Context(), `%+v`, internalErr)
 	}
 }
