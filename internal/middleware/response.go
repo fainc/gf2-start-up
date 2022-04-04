@@ -64,11 +64,14 @@ func (c *cResponse) HandlerResponse(r *ghttp.Request) {
 func (c *cResponse) responseJson(r *ghttp.Request, httpCode int, code int, msg string, res interface{}) {
 	r.Response.WriteStatus(httpCode)
 	r.Response.ClearBuffer()
-	internalErr := r.Response.WriteJsonExit(DefaultHandlerResponse{
+
+	internalErr := r.Response.WriteJson(DefaultHandlerResponse{
 		Code:    code,
 		Message: msg,
 		Data:    res,
 	})
+	r.Response.Header().Set("Content-Type", "application/json;charset=utf-8")
+	r.Exit()
 	if internalErr != nil {
 		glog.Errorf(r.Context(), `%+v`, internalErr)
 	}

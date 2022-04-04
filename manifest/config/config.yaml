@@ -1,4 +1,5 @@
 server:
+  serverAgent: "GWS"
   address:     ":8000"
   openapiPath: "/api.json"
   swaggerPath: "/swagger"
