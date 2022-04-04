@@ -9,6 +9,7 @@ type HelloReq struct {
 	Name   string `p:"username"  v:"length:4,30#请输入账号|账号长度为:min到:max位"`
 }
 type HelloRes struct {
-	Reply string `dc:"Reply content"`
-	Id    string `dc:"your user id"`
+	ResponseFormat string
+	Reply          string `dc:"Reply content"`
+	Id             string `dc:"your user id"`
 }
